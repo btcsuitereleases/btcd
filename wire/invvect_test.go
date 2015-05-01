@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuitereleases/btcd/wire"
 	"github.com/davecgh/go-spew/spew"
 )
 

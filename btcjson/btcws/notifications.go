@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/btcsuite/btcd/btcjson"
+	"github.com/btcsuitereleases/btcd/btcjson"
 )
 
 var (

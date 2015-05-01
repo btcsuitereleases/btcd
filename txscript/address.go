@@ -5,8 +5,8 @@
 package txscript
 
 import (
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcutil"
+	"github.com/btcsuitereleases/btcd/chaincfg"
+	"github.com/btcsuitereleases/btcutil"
 )
 
 // ExtractPkScriptAddrs returns the type of script, addresses and required

@@ -7,7 +7,7 @@ package blockchain
 import (
 	"fmt"
 
-	"github.com/btcsuite/btcutil"
+	"github.com/btcsuitereleases/btcutil"
 )
 
 // maybeAcceptBlock potentially accepts a block into the memory block chain.

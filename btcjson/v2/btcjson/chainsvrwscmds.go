@@ -8,7 +8,7 @@
 package btcjson
 
 import (
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuitereleases/btcd/wire"
 )
 
 // AuthenticateCmd defines the authenticate JSON-RPC command.

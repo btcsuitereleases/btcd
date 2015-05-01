@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuitereleases/btcd/txscript"
+	"github.com/btcsuitereleases/btcd/wire"
 )
 
 // TestScripts tests script execution for a wide variety of opcodes.  All tests

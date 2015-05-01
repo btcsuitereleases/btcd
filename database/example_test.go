@@ -7,10 +7,10 @@ package database_test
 import (
 	"fmt"
 
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/database"
-	_ "github.com/btcsuite/btcd/database/memdb"
-	"github.com/btcsuite/btcutil"
+	"github.com/btcsuitereleases/btcd/chaincfg"
+	"github.com/btcsuitereleases/btcd/database"
+	_ "github.com/btcsuitereleases/btcd/database/memdb"
+	"github.com/btcsuitereleases/btcutil"
 )
 
 // This example demonstrates creating a new database and inserting the genesis
