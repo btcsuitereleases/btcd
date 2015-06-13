@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/btcsuitereleases/btcd/blockchain"
+	"github.com/btcsuite/btcd/blockchain"
 )
 
 func TestBigToCompact(t *testing.T) {

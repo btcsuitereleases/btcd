@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/btcsuitereleases/btcd/blockchain"
+	"github.com/btcsuite/btcd/blockchain"
 )
 
 // TestTimeSorter tests the timeSorter implementation.

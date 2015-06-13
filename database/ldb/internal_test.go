@@ -9,7 +9,7 @@ import (
 
 	"testing"
 
-	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuite/btcutil"
 	"golang.org/x/crypto/ripemd160"
 )
 

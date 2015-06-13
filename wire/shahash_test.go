@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuite/btcd/wire"
 )
 
 // TestShaHash tests the ShaHash API.

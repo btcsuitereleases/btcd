@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuitereleases/btcd/database"
-	_ "github.com/btcsuitereleases/btcd/database/ldb"
-	_ "github.com/btcsuitereleases/btcd/database/memdb"
-	"github.com/btcsuitereleases/btcd/wire"
-	"github.com/btcsuitereleases/btcutil"
-	flags "github.com/btcsuitereleases/go-flags"
-	"github.com/btcsuitereleases/go-socks/socks"
+	"github.com/btcsuite/btcd/database"
+	_ "github.com/btcsuite/btcd/database/ldb"
+	_ "github.com/btcsuite/btcd/database/memdb"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuite/btcutil"
+	flags "github.com/btcsuite/go-flags"
+	"github.com/btcsuite/go-socks/socks"
 )
 
 const (

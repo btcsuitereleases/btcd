@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/btcsuitereleases/btcd/txscript"
+	"github.com/btcsuite/btcd/txscript"
 )
 
 // TestStack tests that all of the stack operations work as expected.

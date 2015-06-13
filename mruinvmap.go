@@ -8,7 +8,7 @@ import (
 	"container/list"
 	"fmt"
 
-	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuite/btcd/wire"
 )
 
 // MruInventoryMap provides a map that is limited to a maximum number of items

@@ -9,7 +9,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuite/btcd/wire"
 )
 
 const (

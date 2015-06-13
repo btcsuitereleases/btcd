@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/btcsuitereleases/btcd/database"
+	"github.com/btcsuite/btcd/database"
 )
 
 var (

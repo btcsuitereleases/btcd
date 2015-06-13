@@ -17,7 +17,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/btcsuitereleases/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec"
 )
 
 func main() {

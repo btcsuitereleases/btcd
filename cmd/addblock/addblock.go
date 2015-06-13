@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/btcsuitereleases/btcd/blockchain"
-	"github.com/btcsuitereleases/btcd/database"
-	_ "github.com/btcsuitereleases/btcd/database/ldb"
-	"github.com/btcsuitereleases/btcd/limits"
-	"github.com/btcsuitereleases/btclog"
+	"github.com/btcsuite/btcd/blockchain"
+	"github.com/btcsuite/btcd/database"
+	_ "github.com/btcsuite/btcd/database/ldb"
+	"github.com/btcsuite/btcd/limits"
+	"github.com/btcsuite/btclog"
 )
 
 const (
