@@ -17,14 +17,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcd/database"
-	"github.com/btcsuite/btcd/txscript"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/fastsha256"
-	"github.com/btcsuite/golangcrypto/ripemd160"
-	"github.com/btcsuite/websocket"
+	"github.com/btcsuitereleases/btcd/btcjson"
+	"github.com/btcsuitereleases/btcd/database"
+	"github.com/btcsuitereleases/btcd/txscript"
+	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/fastsha256"
+	"github.com/btcsuitereleases/golangcrypto/ripemd160"
+	"github.com/btcsuitereleases/websocket"
 )
 
 const (

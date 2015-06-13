@@ -9,12 +9,12 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/btcsuite/btcd/database"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/golangcrypto/ripemd160"
-	"github.com/btcsuite/goleveldb/leveldb"
-	"github.com/btcsuite/goleveldb/leveldb/util"
+	"github.com/btcsuitereleases/btcd/database"
+	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/golangcrypto/ripemd160"
+	"github.com/btcsuitereleases/goleveldb/leveldb"
+	"github.com/btcsuitereleases/goleveldb/leveldb/util"
 )
 
 const (

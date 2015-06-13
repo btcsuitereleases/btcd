@@ -5,8 +5,8 @@
 package main
 
 import (
-	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/wire"
+	"github.com/btcsuitereleases/btcd/chaincfg"
+	"github.com/btcsuitereleases/btcd/wire"
 )
 
 // activeNetParams is a pointer to the parameters specific to the

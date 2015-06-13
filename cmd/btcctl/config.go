@@ -11,9 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcjson"
-	"github.com/btcsuite/btcutil"
-	flags "github.com/btcsuite/go-flags"
+	"github.com/btcsuitereleases/btcd/btcjson"
+	"github.com/btcsuitereleases/btcutil"
+	flags "github.com/btcsuitereleases/go-flags"
 )
 
 const (

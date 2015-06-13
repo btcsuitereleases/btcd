@@ -9,8 +9,8 @@ import (
 
 	"testing"
 
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/golangcrypto/ripemd160"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/golangcrypto/ripemd160"
 )
 
 func TestAddrIndexKeySerialization(t *testing.T) {

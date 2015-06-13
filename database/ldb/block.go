@@ -8,10 +8,10 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/btcsuite/btcd/database"
-	"github.com/btcsuite/btcd/wire"
-	"github.com/btcsuite/btcutil"
-	"github.com/btcsuite/goleveldb/leveldb"
+	"github.com/btcsuitereleases/btcd/database"
+	"github.com/btcsuitereleases/btcd/wire"
+	"github.com/btcsuitereleases/btcutil"
+	"github.com/btcsuitereleases/goleveldb/leveldb"
 )
 
 // FetchBlockBySha - return a btcutil Block
