@@ -89,11 +89,11 @@ Launch btcd from your Start menu.
 $ ./btcd
 ````
 
-## IRC server
+## IRC
 
-- irc.conformal.com:6697
-- ssl required
+- irc.freenode.net
 - channel #btcd
+- [webchat](https://webchat.freenode.net/?channels=btcd)
 
 ## Mailing lists
 
@@ -114,8 +114,8 @@ The documentation is a work-in-progress.  It is located in the [docs](https://gi
 ## GPG Verification Key
 
 All official release tags are signed by Conformal so users can ensure the code
-has not been tampered with and is coming from Conformal.  To verify the
-signature perform the following:
+has not been tampered with and is coming from the btcsuite developers.  To
+verify the signature perform the following:
 
 - Download the public key from the Conformal website at
   https://opensource.conformal.com/GIT-GPG-KEY-conformal.txt

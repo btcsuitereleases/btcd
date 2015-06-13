@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 Conformal Systems LLC.
+// Copyright (c) 2013-2015 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -522,10 +522,14 @@ func RandomUint64() (uint64, error) {
 
 // DoubleSha256 calculates sha256(sha256(b)) and returns the resulting bytes.
 func DoubleSha256(b []byte) []byte {
-	hasher := fastsha256.New()
-	hasher.Write(b)
-	sum := hasher.Sum(nil)
-	hasher.Reset()
-	hasher.Write(sum)
-	return hasher.Sum(nil)
+	first := fastsha256.Sum256(b)
+	second := fastsha256.Sum256(first[:])
+	return second[:]
+}
+
+// DoubleSha256SH calculates sha256(sha256(b)) and returns the resulting bytes
+// as a ShaHash.
+func DoubleSha256SH(b []byte) ShaHash {
+	first := fastsha256.Sum256(b)
+	return ShaHash(fastsha256.Sum256(first[:]))
 }

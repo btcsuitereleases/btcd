@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 Conformal Systems LLC.
+// Copyright (c) 2013-2015 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -108,8 +108,9 @@ func (msg *MsgBlock) Deserialize(r io.Reader) error {
 }
 
 // DeserializeTxLoc decodes r in the same manner Deserialize does, but it takes
-// a byte buffer instead of a generic reader and returns a slice containing the start and length of
-// each transaction within the raw data that is being deserialized.
+// a byte buffer instead of a generic reader and returns a slice containing the
+// start and length of each transaction within the raw data that is being
+// deserialized.
 func (msg *MsgBlock) DeserializeTxLoc(r *bytes.Buffer) ([]TxLoc, error) {
 	fullLen := r.Len()
 
@@ -224,7 +225,7 @@ func (msg *MsgBlock) MaxPayloadLength(pver uint32) uint32 {
 }
 
 // BlockSha computes the block identifier hash for this block.
-func (msg *MsgBlock) BlockSha() (ShaHash, error) {
+func (msg *MsgBlock) BlockSha() ShaHash {
 	return msg.Header.BlockSha()
 }
 
@@ -232,10 +233,7 @@ func (msg *MsgBlock) BlockSha() (ShaHash, error) {
 func (msg *MsgBlock) TxShas() ([]ShaHash, error) {
 	shaList := make([]ShaHash, 0, len(msg.Transactions))
 	for _, tx := range msg.Transactions {
-		// Ignore error here since TxSha can't fail in the current
-		// implementation except due to run-time panics.
-		sha, _ := tx.TxSha()
-		shaList = append(shaList, sha)
+		shaList = append(shaList, tx.TxSha())
 	}
 	return shaList, nil
 }

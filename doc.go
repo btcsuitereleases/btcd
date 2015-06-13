@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2014 Conformal Systems LLC.
+// Copyright (c) 2013-2014 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -37,6 +37,8 @@ Application Options:
                            are {s, m, h}.  Minimum 1 second (24h0m0s)
   -u, --rpcuser=           Username for RPC connections
   -P, --rpcpass=           Password for RPC connections
+      --rpclimituser=      Username for limited RPC connections
+      --rpclimitpass=      Password for limited RPC connections
       --rpclisten=         Add an interface/port to listen for RPC connections
                            (default port: 8334, testnet: 18334)
       --rpccert=           File containing the certificate file
@@ -61,7 +63,8 @@ Application Options:
       --onionuser=         Username for onion proxy server
       --onionpass=         Password for onion proxy server
       --noonion=           Disable connecting to tor hidden services
-      --tor=               Specifies the proxy server used is a Tor node
+      --torisolation       Enable Tor stream isolation by randomizing user
+                           credentials for each connection.
       --testnet=           Use the test network
       --regtest=           Use the regression test network
       --nocheckpoints=     Disable built-in checkpoints.  Don't do this unless
@@ -79,7 +82,8 @@ Application Options:
       --limitfreerelay=    Limit relay of transactions with no transaction fee
                            to the given amount in thousands of bytes per minute
                            (15)
-
+      --maxorphantx=       Max number of orphan transactions to keep in memory
+                           (1000)
       --generate=          Generate (mine) bitcoins using the CPU
       --miningaddr=        Add the specified payment address to the list of
                            addresses to use for generated blocks -- At least

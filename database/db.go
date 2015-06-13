@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2014 Conformal Systems LLC.
+// Copyright (c) 2013-2014 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -9,12 +9,12 @@ import (
 
 	"github.com/btcsuite/btcd/wire"
 	"github.com/btcsuite/btcutil"
-	"golang.org/x/crypto/ripemd160"
+	"github.com/btcsuite/golangcrypto/ripemd160"
 )
 
 // Errors that the various database functions may return.
 var (
-	ErrAddrIndexDoesNotExist  = errors.New("address index hasn't been built up yet")
+	ErrAddrIndexDoesNotExist  = errors.New("address index hasn't been built or is an older version")
 	ErrUnsupportedAddressType = errors.New("address type is not supported " +
 		"by the address-index")
 	ErrPrevShaMissing  = errors.New("previous sha missing from database")

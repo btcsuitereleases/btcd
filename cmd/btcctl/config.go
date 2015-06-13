@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 Conformal Systems LLC.
+// Copyright (c) 2013-2015 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcjson/v2/btcjson"
+	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcutil"
 	flags "github.com/btcsuite/go-flags"
 )
@@ -190,6 +190,11 @@ func loadConfig() (*config, []string, error) {
 	if err != nil {
 		if e, ok := err.(*flags.Error); ok && e.Type == flags.ErrHelp {
 			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "The special parameter `-` "+
+				"indicates that a parameter should be read "+
+				"from the\nnext unread line from standard "+
+				"input.")
 			return nil, nil, err
 		}
 	}

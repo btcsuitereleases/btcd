@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2014 Conformal Systems LLC.
+// Copyright (c) 2013-2014 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -314,15 +314,13 @@ func messageSummary(msg wire.Message) string {
 		// No summary.
 
 	case *wire.MsgTx:
-		hash, _ := msg.TxSha()
 		return fmt.Sprintf("hash %s, %d inputs, %d outputs, lock %s",
-			hash, len(msg.TxIn), len(msg.TxOut),
+			msg.TxSha(), len(msg.TxIn), len(msg.TxOut),
 			formatLockTime(msg.LockTime))
 
 	case *wire.MsgBlock:
 		header := &msg.Header
-		hash, _ := msg.BlockSha()
-		return fmt.Sprintf("hash %s, ver %d, %d tx, %s", hash,
+		return fmt.Sprintf("hash %s, ver %d, %d tx, %s", msg.BlockSha(),
 			header.Version, len(msg.Transactions), header.Timestamp)
 
 	case *wire.MsgInv:

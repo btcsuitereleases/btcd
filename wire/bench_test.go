@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 Conformal Systems LLC.
+// Copyright (c) 2013-2015 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -390,5 +390,39 @@ func BenchmarkWriteBlockHeader(b *testing.B) {
 func BenchmarkTxSha(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		genesisCoinbaseTx.TxSha()
+	}
+}
+
+// BenchmarkDoubleSha256 performs a benchmark on how long it takes to perform a
+// double sha 256 returning a byte slice.
+func BenchmarkDoubleSha256(b *testing.B) {
+	b.StopTimer()
+	var buf bytes.Buffer
+	if err := genesisCoinbaseTx.Serialize(&buf); err != nil {
+		b.Errorf("Serialize: unexpected error: %v", err)
+		return
+	}
+	txBytes := buf.Bytes()
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = DoubleSha256(txBytes)
+	}
+}
+
+// BenchmarkDoubleSha256SH performs a benchmark on how long it takes to perform
+// a double sha 256 returning a ShaHash.
+func BenchmarkDoubleSha256SH(b *testing.B) {
+	b.StopTimer()
+	var buf bytes.Buffer
+	if err := genesisCoinbaseTx.Serialize(&buf); err != nil {
+		b.Errorf("Serialize: unexpected error: %v", err)
+		return
+	}
+	txBytes := buf.Bytes()
+	b.StartTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = DoubleSha256SH(txBytes)
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2014 Conformal Systems LLC.
+// Copyright (c) 2013-2014 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -83,8 +83,8 @@ out:
 			// Create a new script engine for the script pair.
 			sigScript := txIn.SignatureScript
 			pkScript := originMsgTx.TxOut[originTxIndex].PkScript
-			engine, err := txscript.NewScript(sigScript, pkScript,
-				txVI.txInIndex, txVI.tx.MsgTx(), v.flags)
+			vm, err := txscript.NewEngine(pkScript, txVI.tx.MsgTx(),
+				txVI.txInIndex, v.flags)
 			if err != nil {
 				str := fmt.Sprintf("failed to parse input "+
 					"%s:%d which references output %s:%d - "+
@@ -98,7 +98,7 @@ out:
 			}
 
 			// Execute the script pair.
-			if err := engine.Execute(); err != nil {
+			if err := vm.Execute(); err != nil {
 				str := fmt.Sprintf("failed to validate input "+
 					"%s:%d which references output %s:%d - "+
 					"%v (input script bytes %x, prev output "+

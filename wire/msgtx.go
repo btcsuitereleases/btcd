@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2015 Conformal Systems LLC.
+// Copyright (c) 2013-2015 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -166,22 +166,14 @@ func (msg *MsgTx) AddTxOut(to *TxOut) {
 }
 
 // TxSha generates the ShaHash name for the transaction.
-func (msg *MsgTx) TxSha() (ShaHash, error) {
+func (msg *MsgTx) TxSha() ShaHash {
 	// Encode the transaction and calculate double sha256 on the result.
 	// Ignore the error returns since the only way the encode could fail
 	// is being out of memory or due to nil pointers, both of which would
-	// cause a run-time panic.  Also, SetBytes can't fail here due to the
-	// fact DoubleSha256 always returns a []byte of the right size
-	// regardless of input.
+	// cause a run-time panic.
 	buf := bytes.NewBuffer(make([]byte, 0, msg.SerializeSize()))
 	_ = msg.Serialize(buf)
-	var sha ShaHash
-	_ = sha.SetBytes(DoubleSha256(buf.Bytes()))
-
-	// Even though this function can't currently fail, it still returns
-	// a potential error to help future proof the API should a failure
-	// become possible.
-	return sha, nil
+	return DoubleSha256SH(buf.Bytes())
 }
 
 // Copy creates a deep copy of a transaction so that the original does not get
@@ -428,6 +420,43 @@ func (msg *MsgTx) Command() string {
 // receiver.  This is part of the Message interface implementation.
 func (msg *MsgTx) MaxPayloadLength(pver uint32) uint32 {
 	return MaxBlockPayload
+}
+
+// PkScriptLocs returns a slice containing the start of each public key script
+// within the raw serialized transaction.  The caller can easily obtain the
+// length of each script by using len on the script available via the
+// appropriate transaction output entry.
+func (msg *MsgTx) PkScriptLocs() []int {
+	numTxOut := len(msg.TxOut)
+	if numTxOut == 0 {
+		return nil
+	}
+
+	// The starting offset in the serialized transaction of the first
+	// transaction output is:
+	//
+	// Version 4 bytes + serialized varint size for the number of
+	// transaction inputs and outputs + serialized size of each transaction
+	// input.
+	n := 4 + VarIntSerializeSize(uint64(len(msg.TxIn))) +
+		VarIntSerializeSize(uint64(numTxOut))
+	for _, txIn := range msg.TxIn {
+		n += txIn.SerializeSize()
+	}
+
+	// Calculate and set the appropriate offset for each public key script.
+	pkScriptLocs := make([]int, numTxOut)
+	for i, txOut := range msg.TxOut {
+		// The offset of the script in the transaction output is:
+		//
+		// Value 8 bytes + serialized varint size for the length of
+		// PkScript.
+		n += 8 + VarIntSerializeSize(uint64(len(txOut.PkScript)))
+		pkScriptLocs[i] = n
+		n += len(txOut.PkScript)
+	}
+
+	return pkScriptLocs
 }
 
 // NewMsgTx returns a new bitcoin tx message that conforms to the Message

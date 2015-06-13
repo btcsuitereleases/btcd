@@ -1,11 +1,10 @@
-// Copyright (c) 2013-2014 Conformal Systems LLC.
+// Copyright (c) 2013-2014 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
 package main
 
 import (
-	"container/list"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -21,7 +20,7 @@ import (
 
 	"github.com/btcsuite/btcd/addrmgr"
 	"github.com/btcsuite/btcd/blockchain"
-	"github.com/btcsuite/btcd/btcjson/v2/btcjson"
+	"github.com/btcsuite/btcd/btcjson"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/database"
 	"github.com/btcsuite/btcd/wire"
@@ -70,6 +69,18 @@ type relayMsg struct {
 	data    interface{}
 }
 
+// updatePeerHeightsMsg is a message sent from the blockmanager to the server
+// after a new block has been accepted. The purpose of the message is to update
+// the heights of peers that were known to announce the block before we
+// connected it to the main chain or recognized it as an orphan. With these
+// updates, peer heights will be kept up to date, allowing for fresh data when
+// selecting sync peer candidacy.
+type updatePeerHeightsMsg struct {
+	newSha     *wire.ShaHash
+	newHeight  int32
+	originPeer *peer
+}
+
 // server provides a bitcoin server for handling communications to and from
 // bitcoin peers.
 type server struct {
@@ -96,6 +107,7 @@ type server struct {
 	query                chan interface{}
 	relayInv             chan relayMsg
 	broadcast            chan broadcastMsg
+	peerHeightsUpdate    chan updatePeerHeightsMsg
 	wg                   sync.WaitGroup
 	quit                 chan struct{}
 	nat                  NAT
@@ -104,9 +116,9 @@ type server struct {
 }
 
 type peerState struct {
-	peers            *list.List
-	outboundPeers    *list.List
-	persistentPeers  *list.List
+	peers            map[*peer]struct{}
+	outboundPeers    map[*peer]struct{}
+	persistentPeers  map[*peer]struct{}
 	banned           map[string]time.Time
 	outboundGroups   map[string]int
 	maxOutboundPeers int
@@ -153,11 +165,11 @@ func (s *server) RemoveRebroadcastInventory(iv *wire.InvVect) {
 }
 
 func (p *peerState) Count() int {
-	return p.peers.Len() + p.outboundPeers.Len() + p.persistentPeers.Len()
+	return len(p.peers) + len(p.outboundPeers) + len(p.persistentPeers)
 }
 
 func (p *peerState) OutboundCount() int {
-	return p.outboundPeers.Len() + p.persistentPeers.Len()
+	return len(p.outboundPeers) + len(p.persistentPeers)
 }
 
 func (p *peerState) NeedMoreOutbound() bool {
@@ -168,21 +180,52 @@ func (p *peerState) NeedMoreOutbound() bool {
 // forAllOutboundPeers is a helper function that runs closure on all outbound
 // peers known to peerState.
 func (p *peerState) forAllOutboundPeers(closure func(p *peer)) {
-	for e := p.outboundPeers.Front(); e != nil; e = e.Next() {
-		closure(e.Value.(*peer))
+	for e := range p.outboundPeers {
+		closure(e)
 	}
-	for e := p.persistentPeers.Front(); e != nil; e = e.Next() {
-		closure(e.Value.(*peer))
+	for e := range p.persistentPeers {
+		closure(e)
 	}
 }
 
 // forAllPeers is a helper function that runs closure on all peers known to
 // peerState.
 func (p *peerState) forAllPeers(closure func(p *peer)) {
-	for e := p.peers.Front(); e != nil; e = e.Next() {
-		closure(e.Value.(*peer))
+	for e := range p.peers {
+		closure(e)
 	}
 	p.forAllOutboundPeers(closure)
+}
+
+// handleUpdatePeerHeight updates the heights of all peers who were known to
+// announce a block we recently accepted.
+func (s *server) handleUpdatePeerHeights(state *peerState, umsg updatePeerHeightsMsg) {
+	state.forAllPeers(func(p *peer) {
+		// The origin peer should already have the updated height.
+		if p == umsg.originPeer {
+			return
+		}
+
+		// Skip this peer if it hasn't recently announced any new blocks.
+		p.StatsMtx.Lock()
+		if p.lastAnnouncedBlock == nil {
+			p.StatsMtx.Unlock()
+			return
+		}
+
+		// This is a pointer to the underlying memory which doesn't
+		// change.
+		latestBlkSha := p.lastAnnouncedBlock
+		p.StatsMtx.Unlock()
+
+		// If the peer has recently announced a block, and this block
+		// matches our newly accepted block, then update their block
+		// height.
+		if *latestBlkSha == *umsg.newSha {
+			p.UpdateLastBlockHeight(umsg.newHeight)
+			p.UpdateLastAnnouncedBlock(nil)
+		}
+	})
 }
 
 // handleAddPeerMsg deals with adding new peers.  It is invoked from the
@@ -234,14 +277,14 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 	// Add the new peer and start it.
 	srvrLog.Debugf("New peer %s", p)
 	if p.inbound {
-		state.peers.PushBack(p)
+		state.peers[p] = struct{}{}
 		p.Start()
 	} else {
 		state.outboundGroups[addrmgr.GroupKey(p.na)]++
 		if p.persistent {
-			state.persistentPeers.PushBack(p)
+			state.persistentPeers[p] = struct{}{}
 		} else {
-			state.outboundPeers.PushBack(p)
+			state.outboundPeers[p] = struct{}{}
 		}
 	}
 
@@ -251,7 +294,7 @@ func (s *server) handleAddPeerMsg(state *peerState, p *peer) bool {
 // handleDonePeerMsg deals with peers that have signalled they are done.  It is
 // invoked from the peerHandler goroutine.
 func (s *server) handleDonePeerMsg(state *peerState, p *peer) {
-	var list *list.List
+	var list map[*peer]struct{}
 	if p.persistent {
 		list = state.persistentPeers
 	} else if p.inbound {
@@ -259,18 +302,18 @@ func (s *server) handleDonePeerMsg(state *peerState, p *peer) {
 	} else {
 		list = state.outboundPeers
 	}
-	for e := list.Front(); e != nil; e = e.Next() {
-		if e.Value == p {
+	for e := range list {
+		if e == p {
 			// Issue an asynchronous reconnect if the peer was a
 			// persistent outbound connection.
 			if !p.inbound && p.persistent && atomic.LoadInt32(&s.shutdown) == 0 {
-				e.Value = newOutboundPeer(s, p.addr, true, p.retryCount+1)
+				e = newOutboundPeer(s, p.addr, true, p.retryCount+1)
 				return
 			}
 			if !p.inbound {
 				state.outboundGroups[addrmgr.GroupKey(p.na)]--
 			}
-			list.Remove(e)
+			delete(list, e)
 			srvrLog.Debugf("Removed peer %s", p)
 			return
 		}
@@ -360,19 +403,24 @@ type getPeerInfoMsg struct {
 	reply chan []*btcjson.GetPeerInfoResult
 }
 
-type addNodeMsg struct {
+type getAddedNodesMsg struct {
+	reply chan []*peer
+}
+
+type disconnectNodeMsg struct {
+	cmp   func(*peer) bool
+	reply chan error
+}
+
+type connectNodeMsg struct {
 	addr      string
 	permanent bool
 	reply     chan error
 }
 
-type delNodeMsg struct {
-	addr  string
+type removeNodeMsg struct {
+	cmp   func(*peer) bool
 	reply chan error
-}
-
-type getAddedNodesMsg struct {
-	reply chan []*peer
 }
 
 // handleQuery is the central handler for all queries and commands from other
@@ -390,7 +438,7 @@ func (s *server) handleQuery(querymsg interface{}, state *peerState) {
 
 	case getPeerInfoMsg:
 		syncPeer := s.blockManager.SyncPeer()
-		infos := make([]*btcjson.GetPeerInfoResult, 0, state.peers.Len())
+		infos := make([]*btcjson.GetPeerInfoResult, 0, len(state.peers))
 		state.forAllPeers(func(p *peer) {
 			if !p.Connected() {
 				return
@@ -402,6 +450,7 @@ func (s *server) handleQuery(querymsg interface{}, state *peerState) {
 			// version.
 			p.StatsMtx.Lock()
 			info := &btcjson.GetPeerInfoResult{
+				ID:             p.id,
 				Addr:           p.addr,
 				Services:       fmt.Sprintf("%08d", p.services),
 				LastSend:       p.lastSend.Unix(),
@@ -409,10 +458,12 @@ func (s *server) handleQuery(querymsg interface{}, state *peerState) {
 				BytesSent:      p.bytesSent,
 				BytesRecv:      p.bytesReceived,
 				ConnTime:       p.timeConnected.Unix(),
+				TimeOffset:     p.timeOffset,
 				Version:        p.protocolVersion,
 				SubVer:         p.userAgent,
 				Inbound:        p.inbound,
-				StartingHeight: p.lastBlock,
+				StartingHeight: p.startingHeight,
+				CurrentHeight:  p.lastBlock,
 				BanScore:       0,
 				SyncNode:       p == syncPeer,
 			}
@@ -427,17 +478,19 @@ func (s *server) handleQuery(querymsg interface{}, state *peerState) {
 		})
 		msg.reply <- infos
 
-	case addNodeMsg:
+	case connectNodeMsg:
 		// XXX(oga) duplicate oneshots?
-		if msg.permanent {
-			for e := state.persistentPeers.Front(); e != nil; e = e.Next() {
-				peer := e.Value.(*peer)
-				if peer.addr == msg.addr {
+		for peer := range state.persistentPeers {
+			if peer.addr == msg.addr {
+				if msg.permanent {
 					msg.reply <- errors.New("peer already connected")
-					return
+				} else {
+					msg.reply <- errors.New("peer exists as a permanent peer")
 				}
+				return
 			}
 		}
+
 		// TODO(oga) if too many, nuke a non-perm peer.
 		if s.handleAddPeerMsg(state,
 			newOutboundPeer(s, msg.addr, msg.permanent, 0)) {
@@ -445,40 +498,80 @@ func (s *server) handleQuery(querymsg interface{}, state *peerState) {
 		} else {
 			msg.reply <- errors.New("failed to add peer")
 		}
-
-	case delNodeMsg:
-		found := false
-		for e := state.persistentPeers.Front(); e != nil; e = e.Next() {
-			peer := e.Value.(*peer)
-			if peer.addr == msg.addr {
-				// Keep group counts ok since we remove from
-				// the list now.
-				state.outboundGroups[addrmgr.GroupKey(peer.na)]--
-				// This is ok because we are not continuing
-				// to iterate so won't corrupt the loop.
-				state.persistentPeers.Remove(e)
-				peer.Disconnect()
-				found = true
-				break
-			}
-		}
+	case removeNodeMsg:
+		found := disconnectPeer(state.persistentPeers, msg.cmp, func(p *peer) {
+			// Keep group counts ok since we remove from
+			// the list now.
+			state.outboundGroups[addrmgr.GroupKey(p.na)]--
+		})
 
 		if found {
 			msg.reply <- nil
 		} else {
 			msg.reply <- errors.New("peer not found")
 		}
-
 	// Request a list of the persistent (added) peers.
 	case getAddedNodesMsg:
 		// Respond with a slice of the relavent peers.
-		peers := make([]*peer, 0, state.persistentPeers.Len())
-		for e := state.persistentPeers.Front(); e != nil; e = e.Next() {
-			peer := e.Value.(*peer)
+		peers := make([]*peer, 0, len(state.persistentPeers))
+		for peer := range state.persistentPeers {
 			peers = append(peers, peer)
 		}
 		msg.reply <- peers
+	case disconnectNodeMsg:
+		// Check inbound peers. We pass a nil callback since we don't
+		// require any additional actions on disconnect for inbound peers.
+		found := disconnectPeer(state.peers, msg.cmp, nil)
+		if found {
+			msg.reply <- nil
+			return
+		}
+
+		// Check outbound peers.
+		found = disconnectPeer(state.outboundPeers, msg.cmp, func(p *peer) {
+			// Keep group counts ok since we remove from
+			// the list now.
+			state.outboundGroups[addrmgr.GroupKey(p.na)]--
+		})
+		if found {
+			// If there are multiple outbound connections to the same
+			// ip:port, continue disconnecting them all until no such
+			// peers are found.
+			for found {
+				found = disconnectPeer(state.outboundPeers, msg.cmp, func(p *peer) {
+					state.outboundGroups[addrmgr.GroupKey(p.na)]--
+				})
+			}
+			msg.reply <- nil
+			return
+		}
+
+		msg.reply <- errors.New("peer not found")
 	}
+}
+
+// disconnectPeer attempts to drop the connection of a tageted peer in the
+// passed peer list. Targets are identified via usage of the passed
+// `compareFunc`, which should return `true` if the passed peer is the target
+// peer. This function returns true on success and false if the peer is unable
+// to be located. If the peer is found, and the passed callback: `whenFound'
+// isn't nil, we call it with the peer as the argument before it is removed
+// from the peerList, and is disconnected from the server.
+func disconnectPeer(peerList map[*peer]struct{}, compareFunc func(*peer) bool, whenFound func(*peer)) bool {
+	for peer := range peerList {
+		if compareFunc(peer) {
+			if whenFound != nil {
+				whenFound(peer)
+			}
+
+			// This is ok because we are not continuing
+			// to iterate so won't corrupt the loop.
+			delete(peerList, peer)
+			peer.Disconnect()
+			return true
+		}
+	}
+	return false
 }
 
 // listenHandler is the main listener which accepts incoming connections for the
@@ -562,9 +655,9 @@ func (s *server) peerHandler() {
 
 	srvrLog.Tracef("Starting peer handler")
 	state := &peerState{
-		peers:            list.New(),
-		persistentPeers:  list.New(),
-		outboundPeers:    list.New(),
+		peers:            make(map[*peer]struct{}),
+		persistentPeers:  make(map[*peer]struct{}),
+		outboundPeers:    make(map[*peer]struct{}),
 		banned:           make(map[string]time.Time),
 		maxOutboundPeers: defaultMaxOutbound,
 		outboundGroups:   make(map[string]int),
@@ -598,6 +691,10 @@ out:
 		// Disconnected peers.
 		case p := <-s.donePeers:
 			s.handleDonePeerMsg(state, p)
+
+		// Block accepted in mainchain or orphan, update peer height.
+		case umsg := <-s.peerHeightsUpdate:
+			s.handleUpdatePeerHeights(state, umsg)
 
 		// Peer to ban.
 		case p := <-s.banPeers:
@@ -644,15 +741,11 @@ out:
 		tries := 0
 		for state.NeedMoreOutbound() &&
 			atomic.LoadInt32(&s.shutdown) == 0 {
-			// We bias like bitcoind does, 10 for no outgoing
-			// up to 90 (8) for the selection of new vs tried
-			//addresses.
-
 			nPeers := state.OutboundCount()
 			if nPeers > 8 {
 				nPeers = 8
 			}
-			addr := s.addrManager.GetAddress("any", 10+nPeers*10)
+			addr := s.addrManager.GetAddress("any")
 			if addr == nil {
 				break
 			}
@@ -768,23 +861,67 @@ func (s *server) PeerInfo() []*btcjson.GetPeerInfoResult {
 	return <-replyChan
 }
 
-// AddAddr adds `addr' as a new outbound peer. If permanent is true then the
-// peer will be persistent and reconnect if the connection is lost.
-// It is an error to call this with an already existing peer.
-func (s *server) AddAddr(addr string, permanent bool) error {
+// DisconnectNodeByAddr disconnects a peer by target address. Both outbound and
+// inbound nodes will be searched for the target node. An error message will
+// be returned if the peer was not found.
+func (s *server) DisconnectNodeByAddr(addr string) error {
 	replyChan := make(chan error)
 
-	s.query <- addNodeMsg{addr: addr, permanent: permanent, reply: replyChan}
+	s.query <- disconnectNodeMsg{
+		cmp:   func(p *peer) bool { return p.addr == addr },
+		reply: replyChan,
+	}
 
 	return <-replyChan
 }
 
-// RemoveAddr removes `addr' from the list of persistent peers if present.
-// An error will be returned if the peer was not found.
-func (s *server) RemoveAddr(addr string) error {
+// DisconnectNodeByID disconnects a peer by target node id. Both outbound and
+// inbound nodes will be searched for the target node. An error message will be
+// returned if the peer was not found.
+func (s *server) DisconnectNodeById(id int32) error {
 	replyChan := make(chan error)
 
-	s.query <- delNodeMsg{addr: addr, reply: replyChan}
+	s.query <- disconnectNodeMsg{
+		cmp:   func(p *peer) bool { return p.id == id },
+		reply: replyChan,
+	}
+
+	return <-replyChan
+}
+
+// RemoveNodeByAddr removes a peer from the list of persistent peers if
+// present. An error will be returned if the peer was not found.
+func (s *server) RemoveNodeByAddr(addr string) error {
+	replyChan := make(chan error)
+
+	s.query <- removeNodeMsg{
+		cmp:   func(p *peer) bool { return p.addr == addr },
+		reply: replyChan,
+	}
+
+	return <-replyChan
+}
+
+// RemoveNodeById removes a peer by node ID from the list of persistent peers
+// if present. An error will be returned if the peer was not found.
+func (s *server) RemoveNodeById(id int32) error {
+	replyChan := make(chan error)
+
+	s.query <- removeNodeMsg{
+		cmp:   func(p *peer) bool { return p.id == id },
+		reply: replyChan,
+	}
+
+	return <-replyChan
+}
+
+// ConnectNode adds `addr' as a new outbound peer. If permanent is true then the
+// peer will be persistent and reconnect if the connection is lost.
+// It is an error to call this with an already existing peer.
+func (s *server) ConnectNode(addr string, permanent bool) error {
+	replyChan := make(chan error)
+
+	s.query <- connectNodeMsg{addr: addr, permanent: permanent, reply: replyChan}
 
 	return <-replyChan
 }
@@ -814,6 +951,18 @@ func (s *server) NetTotals() (uint64, uint64) {
 	defer s.bytesMutex.Unlock()
 
 	return s.bytesReceived, s.bytesSent
+}
+
+// UpdatePeerHeights updates the heights of all peers who have have announced
+// the latest connected main chain block, or a recognized orphan. These height
+// updates allow us to dynamically refresh peer heights, ensuring sync peer
+// selection has access to the latest block heights for each peer.
+func (s *server) UpdatePeerHeights(latestBlkSha *wire.ShaHash, latestHeight int32, updateSource *peer) {
+	s.peerHeightsUpdate <- updatePeerHeightsMsg{
+		newSha:     latestBlkSha,
+		newHeight:  latestHeight,
+		originPeer: updateSource,
+	}
 }
 
 // rebroadcastHandler keeps track of user submitted inventories that we have
@@ -1244,6 +1393,7 @@ func newServer(listenAddrs []string, db database.Db, chainParams *chaincfg.Param
 		broadcast:            make(chan broadcastMsg, cfg.MaxPeers),
 		quit:                 make(chan struct{}),
 		modifyRebroadcastInv: make(chan interface{}),
+		peerHeightsUpdate:    make(chan updatePeerHeightsMsg),
 		nat:                  nat,
 		db:                   db,
 		timeSource:           blockchain.NewMedianTime(),

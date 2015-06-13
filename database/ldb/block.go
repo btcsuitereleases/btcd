@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2014 Conformal Systems LLC.
+// Copyright (c) 2013-2014 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -134,10 +134,9 @@ func (db *LevelDb) setBlk(sha *wire.ShaHash, blkHeight int64, buf []byte) {
 	shaKey := shaBlkToKey(sha)
 	blkKey := int64ToKey(blkHeight)
 
-	shaB := sha.Bytes()
-	blkVal := make([]byte, len(shaB)+len(buf))
-	copy(blkVal[0:], shaB)
-	copy(blkVal[len(shaB):], buf)
+	blkVal := make([]byte, len(sha)+len(buf))
+	copy(blkVal[0:], sha[:])
+	copy(blkVal[len(sha):], buf)
 
 	db.lBatch().Put(shaKey, lw[:])
 	db.lBatch().Put(blkKey, blkVal)
@@ -284,6 +283,28 @@ func (db *LevelDb) NewestSha() (rsha *wire.ShaHash, rblkid int64, err error) {
 	sha := db.lastBlkSha
 
 	return &sha, db.lastBlkIdx, nil
+}
+
+// checkAddrIndexVersion returns an error if the address index version stored
+// in the database is less than the current version, or if it doesn't exist.
+// This function is used on startup to signal OpenDB to drop the address index
+// if it's in an old, incompatible format.
+func (db *LevelDb) checkAddrIndexVersion() error {
+	db.dbLock.Lock()
+	defer db.dbLock.Unlock()
+
+	data, err := db.lDb.Get(addrIndexVersionKey, db.ro)
+	if err != nil {
+		return database.ErrAddrIndexDoesNotExist
+	}
+
+	indexVersion := binary.LittleEndian.Uint16(data)
+
+	if indexVersion != uint16(addrIndexCurrentVersion) {
+		return database.ErrAddrIndexDoesNotExist
+	}
+
+	return nil
 }
 
 // fetchAddrIndexTip returns the last block height and block sha to be indexed.

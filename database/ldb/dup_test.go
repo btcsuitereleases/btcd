@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2014 Conformal Systems LLC.
+// Copyright (c) 2013-2014 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -103,7 +103,7 @@ out:
 			t.Errorf("height doe not match latest block height %v %v %v", blkid, height, err)
 		}
 
-		blkSha, _ := block.Sha()
+		blkSha := block.Sha()
 		if *newSha != *blkSha {
 			t.Errorf("Newest block sha does not match freshly inserted one %v %v %v ", newSha, blkSha, err)
 		}
@@ -169,7 +169,7 @@ out:
 		} else {
 			for _, lr := range txReply {
 				if lr.Err != nil {
-					fmt.Errorf("stx %v spent %v err %v\n", lr.Sha,
+					t.Errorf("stx %v spent %v err %v\n", lr.Sha,
 						lr.TxSpent, lr.Err)
 				}
 			}

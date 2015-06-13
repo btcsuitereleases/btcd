@@ -1,4 +1,4 @@
-// Copyright (c) 2014 Conformal Systems LLC.
+// Copyright (c) 2014 The btcsuite developers
 // Use of this source code is governed by an ISC
 // license that can be found in the LICENSE file.
 
@@ -182,7 +182,8 @@ func mergeTxStore(txStoreA blockchain.TxStore, txStoreB blockchain.TxStore) {
 // the extra nonce as well as additional coinbase flags.
 func standardCoinbaseScript(nextBlockHeight int64, extraNonce uint64) ([]byte, error) {
 	return txscript.NewScriptBuilder().AddInt64(nextBlockHeight).
-		AddUint64(extraNonce).AddData([]byte(coinbaseFlags)).Script()
+		AddInt64(int64(extraNonce)).AddData([]byte(coinbaseFlags)).
+		Script()
 }
 
 // createCoinbaseTx returns a coinbase transaction paying an appropriate subsidy
@@ -282,7 +283,7 @@ func minimumMedianTime(chainState *chainState) (time.Time, error) {
 // medianAdjustedTime returns the current time adjusted to ensure it is at least
 // one second after the median timestamp of the last several blocks per the
 // chain consensus rules.
-func medianAdjustedTime(chainState *chainState) (time.Time, error) {
+func medianAdjustedTime(chainState *chainState, timeSource blockchain.MedianTimeSource) (time.Time, error) {
 	chainState.Lock()
 	defer chainState.Unlock()
 	if chainState.pastMedianTimeErr != nil {
@@ -295,7 +296,7 @@ func medianAdjustedTime(chainState *chainState) (time.Time, error) {
 	// timestamp is truncated to a second boundary before comparison since a
 	// block timestamp does not supported a precision greater than one
 	// second.
-	newTimestamp := time.Unix(time.Now().Unix(), 0)
+	newTimestamp := timeSource.AdjustedTime()
 	minTimestamp := chainState.pastMedianTime.Add(time.Second)
 	if newTimestamp.Before(minTimestamp) {
 		newTimestamp = minTimestamp
@@ -367,8 +368,8 @@ func medianAdjustedTime(chainState *chainState) (time.Time, error) {
 //   -----------------------------------  --
 func NewBlockTemplate(mempool *txMemPool, payToAddress btcutil.Address) (*BlockTemplate, error) {
 	blockManager := mempool.server.blockManager
+	timeSource := mempool.server.timeSource
 	chainState := &blockManager.chainState
-	chain := blockManager.blockChain
 
 	// Extend the most recently known best block.
 	chainState.Lock()
@@ -445,7 +446,9 @@ mempoolLoop:
 			minrLog.Tracef("Skipping coinbase tx %s", tx.Sha())
 			continue
 		}
-		if !blockchain.IsFinalizedTransaction(tx, nextBlockHeight, time.Now()) {
+		if !blockchain.IsFinalizedTransaction(tx, nextBlockHeight,
+			timeSource.AdjustedTime()) {
+
 			minrLog.Tracef("Skipping non-finalized tx %s", tx.Sha())
 			continue
 		}
@@ -455,7 +458,7 @@ mempoolLoop:
 		// inputs from the mempool since a transaction which depends on
 		// other transactions in the mempool must come after those
 		// dependencies in the final generated block.
-		txStore, err := chain.FetchTransactionStore(tx)
+		txStore, err := blockManager.FetchTransactionStore(tx)
 		if err != nil {
 			minrLog.Warnf("Unable to fetch transaction store for "+
 				"tx %s: %v", tx.Sha(), err)
@@ -708,7 +711,7 @@ mempoolLoop:
 	// Calculate the required difficulty for the block.  The timestamp
 	// is potentially adjusted to ensure it comes after the median time of
 	// the last several blocks per the chain consensus rules.
-	ts, err := medianAdjustedTime(chainState)
+	ts, err := medianAdjustedTime(chainState, timeSource)
 	if err != nil {
 		return nil, err
 	}
@@ -766,7 +769,8 @@ func UpdateBlockTime(msgBlock *wire.MsgBlock, bManager *blockManager) error {
 	// The new timestamp is potentially adjusted to ensure it comes after
 	// the median time of the last several blocks per the chain consensus
 	// rules.
-	newTimestamp, err := medianAdjustedTime(&bManager.chainState)
+	newTimestamp, err := medianAdjustedTime(&bManager.chainState,
+		bManager.server.timeSource)
 	if err != nil {
 		return err
 	}
